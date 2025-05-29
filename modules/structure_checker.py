@@ -2,7 +2,7 @@ import os
 
 class StructureChecker:
     REQUIRED_FILES = ["README.md"]
-    REQUIRED_DIRS = ["src", "tests"]
+    REQUIRED_DIRS = ["modules"]
 
     @classmethod
     def check_structure(cls, project_path):
