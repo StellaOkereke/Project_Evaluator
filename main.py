@@ -57,8 +57,12 @@ if st.button("Evaluate"):
             st.write(f"**Score:** {readme_result['score']} / {readme_result['out_of']}")
             st.write("**Missing Sections:**", readme_result['missing_sections'])
 
-        with st.expander("Final Summary"):
+        with st.expander("📊 Final Summary"):
             total_score = readme_result['score'] + len(syntax_result['passed'])
-            st.success(f"Total Score: {total_score} (syntax + readme)")
-
-        Fetcher.cleanup_temp_dir(temp_project_path)
+            st.markdown(f"""
+                        **Total Score: {total_score} / {4 + len(syntax_result['passed']) + len(syntax_result['failed'])}**
+                        - ✅ Syntax Passed: {len(syntax_result['passed'])}
+                        - ❌ Syntax Failed: {len(syntax_result['failed'])}
+                        - 📄 README Score: {readme_result['score']} / 4""")
+            Fetcher.cleanup_temp_dir(temp_project_path)
+        
