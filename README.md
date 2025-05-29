@@ -1,5 +1,7 @@
 # Student Project Evaluator
 
+## Introduction
+
 **Student Project Evaluator** is a Python-based tool designed to automatically assess the structure, code quality, and documentation of student software projects. It provides a Streamlit-based interface to simplify evaluation and scoring of submitted Git repositories.
 
 ## Features
