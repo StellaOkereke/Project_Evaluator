@@ -1,68 +1,121 @@
-import streamlit as st
-import tempfile
-import os
+# Import required libraries and modules
+import streamlit as st  # Streamlit for UI components and web app
+import tempfile  # For creating temporary directories/files
+import os  # For file path operations
 from modules import Fetcher, StructureChecker, SanityChecker, ReadmeScorer
 
-st.set_page_config(page_title="Student Project Evaluator", layout="centered")
+
+# Create instances of your classes
+fetcher = Fetcher()
+structure_checker = StructureChecker()
+# sanity_checker = SanityChecker()
+readme_scorer = ReadmeScorer()
+
+st.markdown(
+    """
+<style>
+    body {
+        background-color: #f0f2f6;
+    }
+    .main {
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 20px;
+    }
+    h1 {
+        color: #1f77b4 !important;
+        font-weight: 700;
+        font-size: 3rem;
+        margin-bottom: 0.5rem;
+    }
+    h2 {
+        color: #ff7f0e !important;
+    }
+    h3 {
+        color: #2ca02c !important;
+    }
+    .st-expander > summary {
+        font-size: 18px;
+        font-weight: bold;
+        color: #3366cc;
+    }
+    .final-summary {
+        background-color: #1f77b4;
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-top: 20px;
+    }
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
 st.title("Student Project Evaluator")
 
-st.markdown("""
-Upload a ZIP file **or** paste a GitHub URL of your Python project. This app will:
-- Check project structure
-- Evaluate Python code for syntax issues
-- Score README.md completeness
-""")
-
-uploaded_file = st.file_uploader("Upload ZIP File", type=["zip"])
-git_url = st.text_input("or Paste GitHub Repo URL")
-
-temp_project_path = None
+repo_url = st.text_input("Enter GitHub Repo URL")
+zip_file = st.file_uploader("Upload ZIP of your project", type="zip")
 
 if st.button("Evaluate"):
-    if uploaded_file:
+    project_path = None
+
+    if zip_file is not None:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
-            tmp_zip.write(uploaded_file.read())
+            tmp_zip.write(zip_file.read())
             tmp_zip_path = tmp_zip.name
-        try:
-            temp_project_path = Fetcher.handle_zip_upload(tmp_zip_path)
-        except Exception as e:
-            st.error(f"ZIP Error: {e}")
-    elif git_url:
-        if not git_url.startswith("https://github.com/"):
-            st.error("Please enter a valid GitHub repository URL.")
-        else:
-            try:
-                temp_project_path = Fetcher.handle_github_clone(git_url)
-            except Exception as e:
-                st.error(f"GitHub Clone Error: {e}")
+
+        project_path = fetcher.handle_zip_upload(tmp_zip_path)
+        st.success("ZIP uploaded and extracted successfully!")
+
+    elif repo_url:
+        project_path = fetcher.handle_github_clone(repo_url)
+        st.success("GitHub repo cloned successfully!")
+
     else:
-        st.warning("Please upload a ZIP or paste a GitHub URL.")
+        st.error("Please upload a ZIP file or enter a GitHub repository URL.")
 
-    if temp_project_path:
-        with st.expander("Structure Check"):
-            structure_result = StructureChecker.check_structure(temp_project_path)
-            st.write("**Present:**", structure_result['present'])
-            st.write("**Missing:**", structure_result['missing'])
+    if project_path:
+        sanity_checker = SanityChecker(project_path)
+        structure_result = structure_checker.check_structure(project_path)
+        readme_result = readme_scorer.score(project_path)
+        syntax_result = sanity_checker.check_python_syntax()
 
-        with st.expander("Python Syntax Check"):
-            syntax_result = SanityChecker.check_python_syntax(temp_project_path)
-            st.write(f"**Passed Files ({len(syntax_result['passed'])}):**")
-            st.code("\n".join(syntax_result['passed']) or "None")
-            st.write(f"**Failed Files ({len(syntax_result['failed'])}):**")
-            for fail in syntax_result['failed']:
-                st.error(f"{fail[0]}: {fail[1]}")
+        # STRUCTURE RESULT
+        with st.expander("📁 Structure Check"):
+            st.markdown("### ✅ Present Files")
+            st.write(structure_result["present"])
+            st.markdown("### ❌ Missing Files")
+            st.write(structure_result["missing"])
 
-        with st.expander("README Score"):
-            readme_result = ReadmeScorer.score_readme(temp_project_path)
-            st.write(f"**Score:** {readme_result['score']} / {readme_result['out_of']}")
-            st.write("**Missing Sections:**", readme_result['missing_sections'])
+        # README SCORE
+        with st.expander("📘 README Score"):
+            st.markdown(f"### Score: `{readme_result['score']} / 4`")
+            st.markdown("### ❌ Missing Sections")
+            st.write(readme_result["missing"])
 
-        with st.expander("📊 Final Summary"):
-            total_score = readme_result['score'] + len(syntax_result['passed'])
-            st.markdown(f"""
-                        **Total Score: {total_score} / {4 + len(syntax_result['passed']) + len(syntax_result['failed'])}**
-                        - ✅ Syntax Passed: {len(syntax_result['passed'])}
-                        - ❌ Syntax Failed: {len(syntax_result['failed'])}
-                        - 📄 README Score: {readme_result['score']} / 4""")
-            Fetcher.cleanup_temp_dir(temp_project_path)
-        
+        # SANITY RESULT
+        with st.expander("🧪 Sanity Check Results"):
+            st.markdown("### ✅ Passed Files")
+            st.write(syntax_result["passed"])
+            st.markdown("### ❌ Failed Files")
+            st.write(syntax_result["failed"])
+
+        # FINAL SCORE SUMMARY
+        total_possible_score = (
+            4 + len(syntax_result["passed"]) + len(syntax_result["failed"])
+        )
+        total_score = readme_result["score"] + len(syntax_result["passed"])
+
+        st.markdown(
+            f"""
+            <div class="final-summary">
+                🎯 Total Score: {total_score} / {total_possible_score} <br>
+                ✅ Syntax Passed: {len(syntax_result['passed'])} <br>
+                ❌ Syntax Failed: {len(syntax_result['failed'])} <br>
+                📄 README Score: {readme_result['score']} / 4
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
