@@ -99,8 +99,13 @@ if st.button("Evaluate"):
         with st.expander("🧪 Sanity Check Results"):
             st.markdown("### ✅ Passed Files")
             st.write(syntax_result["passed"])
+
             st.markdown("### ❌ Failed Files")
-            st.write(syntax_result["failed"])
+            if syntax_result["failed"]:
+                for error in syntax_result["failed"]:
+                    st.error(error)
+            else:
+                st.write("No syntax errors detected.")
 
         # FINAL SCORE SUMMARY
         total_possible_score = (
